@@ -28,13 +28,21 @@ Three nodes, one shared truth. This is a distributed key-value store where every
 
 ## Architecture
 
-```
-                    ┌──────────────┐
- Clients ──HTTP──▶  │    Leader    │──gRPC AppendEntries──▶ Follower
- (GET/PUT/DELETE)   │  Raft log    │──gRPC AppendEntries──▶ Follower
-                    │  majority    │
-                    │  commit ──▶ apply ──▶ KV state machine
-                    └──────────────┘
+```mermaid
+flowchart LR
+    clients["Clients<br/><em>GET · PUT · DELETE</em>"] -->|HTTP| leader
+
+    subgraph cluster["3-node Raft cluster"]
+        direction TB
+        leader["<b>Leader</b><br/>Raft log → majority commit<br/>→ apply → KV state machine"]
+        follower1["Follower"]
+        follower2["Follower"]
+        leader -->|gRPC · AppendEntries| follower1
+        leader -->|gRPC · AppendEntries| follower2
+    end
+
+    style leader fill:#e8f5e9,stroke:#2e7d32
+    style cluster fill:#fafafa,stroke:#9e9e9e,stroke-dasharray: 5 5
 ```
 
 Each node runs two servers: an HTTP server for client traffic and a gRPC server for peer consensus traffic. Committed log entries are applied in order to a deterministic in-memory KV state machine.
