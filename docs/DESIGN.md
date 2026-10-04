@@ -1,0 +1,7 @@
+# Design
+
+The implementation follows the core Raft state transitions: followers time out into candidates, candidates request votes using last-log freshness, and leaders replicate entries with AppendEntries. A current-term entry is committed once a majority reports the index. Committed entries are applied to the deterministic KV state machine.
+
+Persistent state is written atomically through a temporary file. On restart with no snapshot, the persisted log is replayed from the beginning to rebuild the in-memory state machine (the log holds every applied entry, so replay is exact). Snapshots serialize the KV state and compact the committed log prefix; they are taken automatically every N committed entries and the leader ships them via InstallSnapshot to any follower that needs compacted entries. The transport uses gRPC with a registered JSON codec so the repository can run without checked-in generated protobuf code; `proto/raft.proto` documents the wire contract and can be used to generate standard protobuf bindings with protoc.
+
+The HTTP layer intentionally separates client traffic from peer consensus traffic. Writes are accepted only by the leader and acknowledged only after the entry is committed on a majority, so an acknowledged write is durable. A follower answers 503 with the best-known leader ID so the demo client can retry against the newly elected leader. This repository is an educational Raft implementation, not a production database.
